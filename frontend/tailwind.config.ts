@@ -24,6 +24,7 @@ const config: Config = {
         error: "var(--error)",
         warning: "var(--warning)",
         success: "var(--success)",
+        destructive: "var(--destructive)",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "sans-serif"],

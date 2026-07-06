@@ -46,3 +46,8 @@ dmypy.json
 
 # Node (if any frontend tooling is added)
 node_modules/
+
+# Frontend build
+frontend/.next/
+frontend/out/
+frontend/node_modules/

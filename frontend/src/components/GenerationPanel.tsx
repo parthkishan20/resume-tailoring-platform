@@ -84,6 +84,7 @@ export default function GenerationPanel({ masterResume: _masterResume, onGenerat
       {error && <p className="text-error text-sm">{error}</p>}
       <div>
         <button
+          data-testid="rules-toggle"
           onClick={() => setRulesOpen((o) => !o)}
           className="text-xs text-muted-foreground hover:text-foreground"
         >
