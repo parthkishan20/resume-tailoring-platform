@@ -1,0 +1,5 @@
+Software Engineer at Mock Corp
+
+We are looking for a Software Engineer with experience in Python, REST API, and PostgreSQL.
+The ideal candidate will have experience with Kubernetes, CI/CD pipelines, and Docker Compose.
+Strong knowledge of modern web development and cloud infrastructure required.

@@ -89,7 +89,9 @@ class SimulatedBackendAPI:
             return user_content[start:] if start != -1 else MOCK_GENERATION_RESULT_YAML
         if "evaluation" in system.lower():
             return json.dumps(MOCK_EVALUATION_RESULT)
-        # PDF import or chat
+        # PDF import (has response_format schema) or chat
+        if response_format:
+            return json.dumps({"yaml_content": MOCK_GENERATION_RESULT_YAML})
         return json.dumps(MOCK_CHAT_RESULT)
 
     async def stream(self, messages: list[dict]) -> AsyncIterator[str]:

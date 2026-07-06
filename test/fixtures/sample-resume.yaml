@@ -1,0 +1,28 @@
+cv:
+  name: Mock User
+  email: mock@example.com
+  phone: "+10000000000"
+  location: Mock City, MC
+  sections:
+    education:
+    - institution: Mock University
+      area: Computer Science
+      degree: Bachelor
+      start_date: 2018-09
+      end_date: 2022-05
+    experience:
+    - company: Mock Corp
+      position: Software Engineer
+      start_date: 2022-06
+      end_date: present
+      location: Mock City, MC
+      highlights:
+      - Built mock features using Python and React.
+      - Deployed mock services with Docker and CI/CD pipelines.
+      - Reduced mock latency by 30 percent through query optimization.
+      - Collaborated with mock teams to deliver mock roadmap items.
+    skills:
+    - label: Languages
+      details: Python, TypeScript, SQL
+    - label: Tools
+      details: Docker, Git, FastAPI, React

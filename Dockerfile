@@ -31,7 +31,7 @@ COPY --from=frontend-builder /build/frontend/out ./static/
 # Runtime directories for volumes
 RUN mkdir -p /app/db /app/pdfs
 
-WORKDIR /app
+WORKDIR /app/backend
 
 EXPOSE 8000
 
