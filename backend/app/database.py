@@ -108,3 +108,109 @@ def delete_master_resume(db_path: str, user_id: str = DEFAULT_USER_ID) -> bool:
         )
         conn.commit()
         return cursor.rowcount > 0
+
+
+# --- Generated Resumes CRUD ---
+
+def list_resumes(
+    db_path: str,
+    user_id: str = DEFAULT_USER_ID,
+    sort: str = "date",
+    order: str = "desc",
+    page: int = 1,
+    limit: int = 20,
+) -> dict:
+    sort_col = "created_at" if sort == "date" else "job_description"
+    order_dir = "DESC" if order.lower() == "desc" else "ASC"
+    offset = (page - 1) * limit
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        total = conn.execute(
+            "SELECT COUNT(*) FROM generated_resumes WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        rows = conn.execute(
+            f"SELECT id, user_id, name, job_description, pdf_path, created_at, updated_at "
+            f"FROM generated_resumes WHERE user_id = ? "
+            f"ORDER BY {sort_col} {order_dir} LIMIT ? OFFSET ?",
+            (user_id, limit, offset),
+        ).fetchall()
+        return {"items": [dict(r) for r in rows], "total": total, "page": page, "limit": limit}
+
+
+def create_resume(
+    db_path: str,
+    name: str,
+    job_description: str,
+    yaml_content: str,
+    pdf_path: str | None = None,
+    user_id: str = DEFAULT_USER_ID,
+) -> dict:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.execute(
+            "INSERT INTO generated_resumes (user_id, name, job_description, yaml_content, pdf_path) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (user_id, name, job_description, yaml_content, pdf_path),
+        )
+        conn.commit()
+        return dict(conn.execute(
+            "SELECT * FROM generated_resumes WHERE id = ?", (cursor.lastrowid,)
+        ).fetchone())
+
+
+def get_resume(
+    db_path: str, resume_id: int, user_id: str = DEFAULT_USER_ID
+) -> dict | None:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM generated_resumes WHERE id = ? AND user_id = ?",
+            (resume_id, user_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def update_resume(
+    db_path: str,
+    resume_id: int,
+    name: str | None = None,
+    yaml_content: str | None = None,
+    pdf_path: str | None = None,
+    user_id: str = DEFAULT_USER_ID,
+) -> dict | None:
+    fields: list[str] = []
+    values: list = []
+    if name is not None:
+        fields.append("name = ?"); values.append(name)
+    if yaml_content is not None:
+        fields.append("yaml_content = ?"); values.append(yaml_content)
+    if pdf_path is not None:
+        fields.append("pdf_path = ?"); values.append(pdf_path)
+    if not fields:
+        return get_resume(db_path, resume_id, user_id)
+    fields.append("updated_at = datetime('now')")
+    values.extend([resume_id, user_id])
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            f"UPDATE generated_resumes SET {', '.join(fields)} WHERE id = ? AND user_id = ?",
+            values,
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM generated_resumes WHERE id = ? AND user_id = ?",
+            (resume_id, user_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def delete_resume(
+    db_path: str, resume_id: int, user_id: str = DEFAULT_USER_ID
+) -> bool:
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.execute(
+            "DELETE FROM generated_resumes WHERE id = ? AND user_id = ?",
+            (resume_id, user_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0

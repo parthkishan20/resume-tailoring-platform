@@ -5,6 +5,7 @@ import pytest
 from app.database import (
     init_db, DEFAULT_RULES, DEFAULT_SYSTEM_PROMPT,
     get_master_resume, upsert_master_resume, delete_master_resume,
+    list_resumes, create_resume, get_resume, update_resume, delete_resume,
 )
 
 
@@ -118,3 +119,64 @@ def test_delete_master_resume(temp_db):
 def test_delete_master_resume_returns_false_when_not_exist(temp_db):
     init_db(temp_db)
     assert delete_master_resume(temp_db) is False
+
+
+# --- Generated Resumes Tests ---
+
+def test_create_and_get_resume(temp_db):
+    init_db(temp_db)
+    r = create_resume(temp_db, "SWE @ Acme", "We need Python devs", "cv:\n  name: Test")
+    assert r["name"] == "SWE @ Acme"
+    assert r["job_description"] == "We need Python devs"
+    assert r["pdf_path"] is None
+    fetched = get_resume(temp_db, r["id"])
+    assert fetched["id"] == r["id"]
+
+
+def test_get_resume_returns_none_for_missing(temp_db):
+    init_db(temp_db)
+    assert get_resume(temp_db, 9999) is None
+
+
+def test_list_resumes_pagination(temp_db):
+    init_db(temp_db)
+    for i in range(5):
+        create_resume(temp_db, f"Resume {i}", f"JD {i}", "cv:\n  name: X")
+    result = list_resumes(temp_db, page=1, limit=3)
+    assert result["total"] == 5
+    assert len(result["items"]) == 3
+    assert result["page"] == 1
+
+
+def test_list_resumes_sort_by_jd(temp_db):
+    init_db(temp_db)
+    create_resume(temp_db, "B", "Zebra Corp", "cv:\n  name: B")
+    create_resume(temp_db, "A", "Apple Inc", "cv:\n  name: A")
+    result = list_resumes(temp_db, sort="jd", order="asc")
+    assert result["items"][0]["name"] == "A"
+
+
+def test_update_resume_name(temp_db):
+    init_db(temp_db)
+    r = create_resume(temp_db, "Old Name", "JD", "cv:\n  name: X")
+    updated = update_resume(temp_db, r["id"], name="New Name")
+    assert updated["name"] == "New Name"
+
+
+def test_update_resume_pdf_path(temp_db):
+    init_db(temp_db)
+    r = create_resume(temp_db, "Test", "JD", "cv:\n  name: X")
+    updated = update_resume(temp_db, r["id"], pdf_path="42.pdf")
+    assert updated["pdf_path"] == "42.pdf"
+
+
+def test_delete_resume(temp_db):
+    init_db(temp_db)
+    r = create_resume(temp_db, "Test", "JD", "cv:\n  name: X")
+    assert delete_resume(temp_db, r["id"]) is True
+    assert get_resume(temp_db, r["id"]) is None
+
+
+def test_delete_resume_returns_false_for_missing(temp_db):
+    init_db(temp_db)
+    assert delete_resume(temp_db, 9999) is False
