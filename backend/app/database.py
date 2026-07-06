@@ -50,3 +50,61 @@ def init_db(db_path: str) -> None:
                 (DEFAULT_USER_ID, DEFAULT_SYSTEM_PROMPT),
             )
         conn.commit()
+
+
+# --- Master Resume CRUD ---
+
+def get_master_resume(db_path: str, user_id: str = DEFAULT_USER_ID) -> dict | None:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT id, user_id, yaml_content, updated_at FROM master_resume WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def upsert_master_resume(
+    db_path: str, yaml_content: str, user_id: str = DEFAULT_USER_ID
+) -> dict:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        existing = conn.execute(
+            "SELECT yaml_content FROM master_resume WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "INSERT INTO master_resume_history (user_id, yaml_content) VALUES (?, ?)",
+                (user_id, existing["yaml_content"]),
+            )
+            conn.execute(
+                """DELETE FROM master_resume_history WHERE user_id = ? AND id NOT IN (
+                    SELECT id FROM master_resume_history WHERE user_id = ?
+                    ORDER BY saved_at DESC LIMIT ?
+                )""",
+                (user_id, user_id, HISTORY_LIMIT),
+            )
+            conn.execute(
+                "UPDATE master_resume SET yaml_content = ?, updated_at = datetime('now') "
+                "WHERE user_id = ?",
+                (yaml_content, user_id),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO master_resume (user_id, yaml_content) VALUES (?, ?)",
+                (user_id, yaml_content),
+            )
+        conn.commit()
+        return dict(conn.execute(
+            "SELECT id, user_id, yaml_content, updated_at FROM master_resume WHERE user_id = ?",
+            (user_id,),
+        ).fetchone())
+
+
+def delete_master_resume(db_path: str, user_id: str = DEFAULT_USER_ID) -> bool:
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.execute(
+            "DELETE FROM master_resume WHERE user_id = ?", (user_id,)
+        )
+        conn.commit()
+        return cursor.rowcount > 0
