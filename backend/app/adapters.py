@@ -1,0 +1,100 @@
+from __future__ import annotations
+import asyncio
+import os
+import tempfile
+from pathlib import Path
+from typing import AsyncIterator
+
+import litellm
+import litellm.exceptions as llm_exc
+
+from .ports import LLMAuthError, LLMUnavailableError, PDFExtractError, RenderError
+
+_LLM_UNAVAILABLE = (
+    llm_exc.RateLimitError,
+    llm_exc.ServiceUnavailableError,
+    llm_exc.APIConnectionError,
+)
+
+
+class LiteLLMAdapter:
+    def __init__(self, model: str, api_key: str) -> None:
+        self._model = model
+        os.environ["OPENROUTER_API_KEY"] = api_key
+
+    async def complete(
+        self, messages: list[dict], response_format: dict | None = None
+    ) -> str:
+        kwargs: dict = {"model": self._model, "messages": messages}
+        if response_format is not None:
+            kwargs["response_format"] = response_format
+        try:
+            response = await litellm.acompletion(**kwargs)
+            return response.choices[0].message.content
+        except llm_exc.AuthenticationError as exc:
+            raise LLMAuthError("Invalid OpenRouter API key") from exc
+        except _LLM_UNAVAILABLE as exc:
+            raise LLMUnavailableError(str(exc)) from exc
+
+    async def stream(self, messages: list[dict]) -> AsyncIterator[str]:
+        try:
+            response = await litellm.acompletion(
+                model=self._model, messages=messages, stream=True
+            )
+        except llm_exc.AuthenticationError as exc:
+            raise LLMAuthError("Invalid OpenRouter API key") from exc
+        except _LLM_UNAVAILABLE as exc:
+            raise LLMUnavailableError(str(exc)) from exc
+        async for chunk in response:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+
+
+class RenderCVAdapter:
+    async def render(self, yaml_content: str) -> bytes:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            yaml_path = tmpdir_path / "resume.yaml"
+            pdf_path = tmpdir_path / "resume.pdf"
+            yaml_path.write_text(yaml_content, encoding="utf-8")
+            proc = await asyncio.create_subprocess_exec(
+                "rendercv", "render", str(yaml_path),
+                "--pdf-path", str(pdf_path),
+                "--dont-generate-markdown",
+                "--dont-generate-html",
+                "--dont-generate-png",
+                "--dont-generate-typst",
+                "--quiet",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                raise RenderError(
+                    f"rendercv failed (exit {proc.returncode}): "
+                    f"{stderr.decode('utf-8', errors='replace')}"
+                )
+            return pdf_path.read_bytes()
+
+
+class PyMuPDFAdapter:
+    _MAX_BYTES = 10 * 1024 * 1024
+    _MAX_PAGES = 50
+
+    async def extract(self, pdf_bytes: bytes) -> str:
+        if len(pdf_bytes) > self._MAX_BYTES:
+            raise ValueError(
+                f"PDF exceeds 10 MB limit ({len(pdf_bytes) / 1_048_576:.1f} MB)"
+            )
+        try:
+            import pymupdf  # noqa: PLC0415 — lazy import (not installed until Wave 2)
+            doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
+        except Exception as exc:
+            raise PDFExtractError(f"Cannot open PDF: {exc}") from exc
+        if doc.page_count > self._MAX_PAGES:
+            doc.close()
+            raise ValueError(f"PDF has {doc.page_count} pages (max {self._MAX_PAGES})")
+        pages = [page.get_text() for page in doc]
+        doc.close()
+        return "\n\n".join(pages)
