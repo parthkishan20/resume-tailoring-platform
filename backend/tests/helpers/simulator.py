@@ -47,10 +47,16 @@ class SimulatedLLMPort:
     async def stream(self, messages: list[dict]) -> AsyncIterator[str]:
         self.stream_call_count += 1
         self.last_stream_messages = messages
-        if self._stream_error:
-            raise self._stream_error
-        for chunk in self._stream_chunks:
-            yield chunk
+        error = self._stream_error
+        chunks = list(self._stream_chunks)
+
+        async def _gen() -> AsyncIterator[str]:
+            if error:
+                raise error
+            for chunk in chunks:
+                yield chunk
+
+        return _gen()
 
 
 class SimulatedPDFRenderPort:

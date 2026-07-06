@@ -5,16 +5,7 @@ import tempfile
 from pathlib import Path
 from typing import AsyncIterator
 
-import litellm
-import litellm.exceptions as llm_exc
-
 from .ports import LLMAuthError, LLMUnavailableError, PDFExtractError, RenderError
-
-_LLM_UNAVAILABLE = (
-    llm_exc.RateLimitError,
-    llm_exc.ServiceUnavailableError,
-    llm_exc.APIConnectionError,
-)
 
 
 class LiteLLMAdapter:
@@ -25,6 +16,13 @@ class LiteLLMAdapter:
     async def complete(
         self, messages: list[dict], response_format: dict | None = None
     ) -> str:
+        import litellm  # noqa: PLC0415 — lazy import (not installed until Wave 2)
+        import litellm.exceptions as llm_exc  # noqa: PLC0415
+        _llm_unavailable = (
+            llm_exc.RateLimitError,
+            llm_exc.ServiceUnavailableError,
+            llm_exc.APIConnectionError,
+        )
         kwargs: dict = {"model": self._model, "messages": messages}
         if response_format is not None:
             kwargs["response_format"] = response_format
@@ -33,22 +31,34 @@ class LiteLLMAdapter:
             return response.choices[0].message.content
         except llm_exc.AuthenticationError as exc:
             raise LLMAuthError("Invalid OpenRouter API key") from exc
-        except _LLM_UNAVAILABLE as exc:
+        except _llm_unavailable as exc:
             raise LLMUnavailableError(str(exc)) from exc
 
     async def stream(self, messages: list[dict]) -> AsyncIterator[str]:
-        try:
-            response = await litellm.acompletion(
-                model=self._model, messages=messages, stream=True
-            )
-        except llm_exc.AuthenticationError as exc:
-            raise LLMAuthError("Invalid OpenRouter API key") from exc
-        except _LLM_UNAVAILABLE as exc:
-            raise LLMUnavailableError(str(exc)) from exc
-        async for chunk in response:
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
+        import litellm  # noqa: PLC0415 — lazy import (not installed until Wave 2)
+        import litellm.exceptions as llm_exc  # noqa: PLC0415
+        _llm_unavailable = (
+            llm_exc.RateLimitError,
+            llm_exc.ServiceUnavailableError,
+            llm_exc.APIConnectionError,
+        )
+        model = self._model
+
+        async def _gen() -> AsyncIterator[str]:
+            try:
+                response = await litellm.acompletion(
+                    model=model, messages=messages, stream=True
+                )
+            except llm_exc.AuthenticationError as exc:
+                raise LLMAuthError("Invalid OpenRouter API key") from exc
+            except _llm_unavailable as exc:
+                raise LLMUnavailableError(str(exc)) from exc
+            async for chunk in response:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield delta
+
+        return _gen()
 
 
 class RenderCVAdapter:
