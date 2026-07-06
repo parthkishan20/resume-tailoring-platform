@@ -24,12 +24,11 @@ class BackendAPI:
 
 
 def create_real_backend() -> BackendAPI:
-    import os
     from .adapters import LiteLLMAdapter, PyMuPDFAdapter, RenderCVAdapter
-    api_key = os.environ["OPENROUTER_API_KEY"]
-    model = os.getenv("LLM_MODEL", "openrouter/openai/gpt-oss-120b:free")
+    from .config import get_settings
+    settings = get_settings()
     return BackendAPI(
-        llm=LiteLLMAdapter(model=model, api_key=api_key),
+        llm=LiteLLMAdapter(model=settings.LLM_MODEL, api_key=settings.OPENROUTER_API_KEY),
         pdf_render=RenderCVAdapter(),
         pdf_extract=PyMuPDFAdapter(),
     )

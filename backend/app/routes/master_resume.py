@@ -5,13 +5,14 @@ import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 from ..backend_api import BackendAPI
 from ..config import get_settings
 from ..database import get_master_resume, upsert_master_resume, delete_master_resume
 from ..deps import get_backend
+from ..ports import RenderError
 
 router = APIRouter()
 
@@ -48,6 +49,24 @@ async def remove_resume():
     deleted = await asyncio.to_thread(delete_master_resume, _db_path())
     if not deleted:
         raise HTTPException(status_code=404, detail="No master resume to delete")
+
+
+@router.get("/api/master-resume/preview")
+async def preview_master_resume(
+    backend: BackendAPI = Depends(get_backend),
+):
+    """Render the current master resume YAML to PDF and return it."""
+    db_path = _db_path()
+    row = await asyncio.to_thread(get_master_resume, db_path)
+    if row is None:
+        raise HTTPException(status_code=404, detail="No master resume found")
+
+    try:
+        pdf_bytes = await backend.render(row["yaml_content"])
+    except RenderError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    return Response(content=pdf_bytes, media_type="application/pdf")
 
 
 @router.post("/api/master-resume/import")

@@ -44,6 +44,35 @@ async def test_delete_master_resume(client, tmp_path, monkeypatch):
 
 
 @pytest.mark.anyio
+async def test_preview_master_resume(client, sim, tmp_path, monkeypatch):
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
+    from app.config import get_settings
+    get_settings.cache_clear()
+    from app.database import init_db
+    import asyncio
+    await asyncio.to_thread(init_db, str(tmp_path / "test.db"))
+    # First save a master resume
+    await client.put("/api/master-resume", json={"yaml_content": "cv:\n  name: Test"})
+    # Then preview it
+    response = await client.get("/api/master-resume/preview")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content[:4] == b"%PDF"
+
+
+@pytest.mark.anyio
+async def test_preview_master_resume_not_found(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "empty.db"))
+    from app.config import get_settings
+    get_settings.cache_clear()
+    from app.database import init_db
+    import asyncio
+    await asyncio.to_thread(init_db, str(tmp_path / "empty.db"))
+    response = await client.get("/api/master-resume/preview")
+    assert response.status_code == 404
+
+
+@pytest.mark.anyio
 async def test_import_pdf_returns_yaml(client, sim):
     sim.sim_pdf_extract.set_response("John Doe\nEngineer at Corp")
     sim.sim_llm.set_complete_response(

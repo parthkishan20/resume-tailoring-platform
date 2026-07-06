@@ -13,6 +13,7 @@ export default function ChatPanel({ masterResume: _masterResume, onAction }: Pro
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function ChatPanel({ masterResume: _masterResume, onAction }: Pro
     const userMsg = input.trim();
     setInput("");
     setSending(true);
+    setError(null);
     setMessages((prev) => [
       ...prev,
       { id: Date.now(), user_id: "default", role: "user", content: userMsg, created_at: new Date().toISOString() },
@@ -53,8 +55,12 @@ export default function ChatPanel({ masterResume: _masterResume, onAction }: Pro
           if ((result.result?.action as { type?: string })?.type === "master_resume_updated") {
             api.getMasterResume().then((r) => r && onAction(r));
           }
+        } else if (event.event === "error") {
+          setError((event.data as { error: string }).error);
         }
       }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Chat failed");
     } finally {
       setSending(false);
     }
@@ -82,7 +88,9 @@ export default function ChatPanel({ masterResume: _masterResume, onAction }: Pro
         ))}
         <div ref={bottomRef} />
       </div>
-      <div className="flex gap-2 p-2 border-t border-border">
+      <div className="flex flex-col p-2 border-t border-border gap-1">
+        {error && <p className="text-error text-sm mt-1">{error}</p>}
+        <div className="flex gap-2">
         <textarea
           data-testid="chat-input"
           value={input}
@@ -100,6 +108,7 @@ export default function ChatPanel({ masterResume: _masterResume, onAction }: Pro
         >
           Send
         </button>
+        </div>
       </div>
     </div>
   );
