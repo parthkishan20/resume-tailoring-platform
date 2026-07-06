@@ -1,5 +1,6 @@
 import json
 import pytest
+from app.ports import LLMUnavailableError
 
 
 @pytest.mark.anyio
@@ -25,6 +26,29 @@ async def test_chat_stream_returns_token_events(client, sim, tmp_path, monkeypat
     event_types = [l.replace("event: ", "").strip() for l in lines if l.startswith("event:")]
     assert "token" in event_types
     assert "done" in event_types
+
+
+@pytest.mark.anyio
+async def test_chat_stream_error_llm_unavailable(client, sim, tmp_path, monkeypatch):
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
+    from app.config import get_settings; get_settings.cache_clear()
+    from app.database import init_db; import asyncio; await asyncio.to_thread(init_db, str(tmp_path / "test.db"))
+    sim.sim_llm.set_stream_error(LLMUnavailableError("Service unavailable"))
+
+    response = await client.post("/api/chat/stream", json={"message": "Hi"})
+    assert response.status_code == 200
+    events = [
+        l.replace("event: ", "").strip()
+        for l in response.text.split("\n")
+        if l.startswith("event:")
+    ]
+    assert "error" in events
+    error_data = next(
+        json.loads(l.replace("data: ", ""))
+        for l in response.text.split("\n")
+        if l.startswith("data:") and "LLM_UNAVAILABLE" in l
+    )
+    assert error_data["code"] == "LLM_UNAVAILABLE"
 
 
 @pytest.mark.anyio

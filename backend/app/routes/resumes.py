@@ -15,6 +15,7 @@ from ..database import (
     get_master_resume,
 )
 from ..deps import get_backend
+from ..ports import LLMAuthError, LLMUnavailableError, RenderError, PDFExtractError
 from ..prompts import GENERATION_SYSTEM_PROMPT, CRITIQUE_SYSTEM_PROMPT
 
 router = APIRouter()
@@ -122,6 +123,14 @@ async def generate_resume_stream(
             )
 
             yield _sse("done", {"result": row})
+        except LLMAuthError as exc:
+            yield _sse("error", {"error": str(exc), "code": "LLM_AUTH_ERROR"})
+        except LLMUnavailableError as exc:
+            yield _sse("error", {"error": str(exc), "code": "LLM_UNAVAILABLE"})
+        except RenderError as exc:
+            yield _sse("error", {"error": str(exc), "code": "RENDER_FAILED"})
+        except PDFExtractError as exc:
+            yield _sse("error", {"error": str(exc), "code": "PDF_EXTRACT_FAILED"})
         except Exception as exc:
             yield _sse("error", {"error": str(exc), "code": "GENERATION_FAILED"})
 

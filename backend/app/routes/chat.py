@@ -11,6 +11,7 @@ from ..backend_api import BackendAPI
 from ..config import get_settings
 from ..database import get_chat_messages, add_chat_message, clear_chat, get_system_prompt
 from ..deps import get_backend
+from ..ports import LLMAuthError, LLMUnavailableError
 
 router = APIRouter()
 
@@ -56,6 +57,10 @@ async def chat_stream(body: ChatRequest, api: BackendAPI = Depends(get_backend))
             await asyncio.to_thread(add_chat_message, _db_path(), "assistant", full_text)
 
             yield _sse("done", {"result": {"text": full_text, "action": None}})
+        except LLMAuthError as exc:
+            yield _sse("error", {"error": str(exc), "code": "LLM_AUTH_ERROR"})
+        except LLMUnavailableError as exc:
+            yield _sse("error", {"error": str(exc), "code": "LLM_UNAVAILABLE"})
         except Exception as exc:
             yield _sse("error", {"error": str(exc), "code": "CHAT_FAILED"})
 

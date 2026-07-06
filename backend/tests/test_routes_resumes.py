@@ -1,6 +1,7 @@
 import json
 import pytest
 from app.simulator import MOCK_GENERATION_RESULT_YAML, MOCK_GENERATION_PROGRESS
+from app.ports import LLMAuthError
 
 
 @pytest.mark.anyio
@@ -38,6 +39,39 @@ async def test_generate_resume_sse_stream(client, sim, tmp_path, monkeypatch):
     lines = response.text.split("\n")
     event_types = [l.replace("event: ", "").strip() for l in lines if l.startswith("event:")]
     assert "done" in event_types
+    assert sim.sim_llm.complete_call_count == 2
+
+
+@pytest.mark.anyio
+async def test_generate_resume_sse_error_llm_auth(client, sim, tmp_path, monkeypatch):
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
+    monkeypatch.setenv("PDFS_DIR", str(tmp_path / "pdfs"))
+    from app.config import get_settings; get_settings.cache_clear()
+    from app.database import init_db, upsert_master_resume
+    import asyncio
+    db = str(tmp_path / "test.db")
+    await asyncio.to_thread(init_db, db)
+    await asyncio.to_thread(upsert_master_resume, db, MOCK_GENERATION_RESULT_YAML)
+
+    sim.sim_llm.set_complete_error(LLMAuthError("Invalid API key"))
+
+    response = await client.post(
+        "/api/resumes/stream",
+        json={"job_description": "Software Engineer at Mock Corp"},
+    )
+    assert response.status_code == 200
+    events = []
+    for line in response.text.split("\n"):
+        if line.startswith("event:"):
+            events.append(line.replace("event: ", "").strip())
+    assert "error" in events
+    data_lines = [l for l in response.text.split("\n") if l.startswith("data:")]
+    error_data = next(
+        json.loads(l.replace("data: ", ""))
+        for l in data_lines
+        if "LLM_AUTH_ERROR" in l
+    )
+    assert error_data["code"] == "LLM_AUTH_ERROR"
 
 
 @pytest.mark.anyio
