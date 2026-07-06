@@ -4,12 +4,17 @@ Shared pytest configuration and fixtures.
 Sets up sys.modules stubs for litellm (not installed until Wave 2 adds
 pyproject.toml) so that adapters.py compiles and adapter error-mapping
 tests work without the real library present.
+
+Also provides `sim` and `client` fixtures for Wave 2 route unit tests.
 """
 from __future__ import annotations
 
 import sys
 from types import ModuleType
 from unittest.mock import MagicMock
+
+import pytest
+from httpx import AsyncClient, ASGITransport
 
 
 # ---------------------------------------------------------------------------
@@ -51,3 +56,22 @@ _litellm_module.acompletion = MagicMock()  # replaced per-test via patch()
 
 sys.modules.setdefault("litellm", _litellm_module)
 sys.modules.setdefault("litellm.exceptions", _exc_module)
+
+
+# ---------------------------------------------------------------------------
+# Wave 2: Route unit test fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def sim():
+    from tests.helpers.simulator import ConfigurableBackendAPI
+    return ConfigurableBackendAPI()
+
+
+@pytest.fixture
+async def client(sim):
+    from app.main import app, get_backend
+    app.dependency_overrides[get_backend] = lambda: sim
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        yield c
+    app.dependency_overrides.clear()
