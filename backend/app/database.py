@@ -214,3 +214,114 @@ def delete_resume(
         )
         conn.commit()
         return cursor.rowcount > 0
+
+
+# --- Chat ---
+
+def get_chat_messages(db_path: str, user_id: str = DEFAULT_USER_ID) -> list[dict]:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT id, user_id, role, content, created_at FROM chat_messages "
+            "WHERE user_id = ? ORDER BY created_at ASC",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def add_chat_message(
+    db_path: str, role: str, content: str, user_id: str = DEFAULT_USER_ID
+) -> dict:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.execute(
+            "INSERT INTO chat_messages (user_id, role, content) VALUES (?, ?, ?)",
+            (user_id, role, content),
+        )
+        conn.commit()
+        return dict(conn.execute(
+            "SELECT * FROM chat_messages WHERE id = ?", (cursor.lastrowid,)
+        ).fetchone())
+
+
+def clear_chat(db_path: str, user_id: str = DEFAULT_USER_ID) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("DELETE FROM chat_messages WHERE user_id = ?", (user_id,))
+        conn.commit()
+
+
+# --- Generation Rules ---
+
+def get_rules(db_path: str, user_id: str = DEFAULT_USER_ID) -> list[dict]:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT section, rule_key, rule_value FROM generation_rules WHERE user_id = ? "
+            "ORDER BY section, rule_key",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def upsert_rules(
+    db_path: str, rules: list[dict], user_id: str = DEFAULT_USER_ID
+) -> list[dict]:
+    with sqlite3.connect(db_path) as conn:
+        for rule in rules:
+            conn.execute(
+                "INSERT INTO generation_rules (user_id, section, rule_key, rule_value) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(user_id, section, rule_key) DO UPDATE SET rule_value = excluded.rule_value",
+                (user_id, rule["section"], rule["rule_key"], rule["rule_value"]),
+            )
+        conn.commit()
+    return get_rules(db_path, user_id)
+
+
+def reset_rules(db_path: str, user_id: str = DEFAULT_USER_ID) -> list[dict]:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("DELETE FROM generation_rules WHERE user_id = ?", (user_id,))
+        conn.executemany(
+            "INSERT INTO generation_rules (user_id, section, rule_key, rule_value) VALUES (?, ?, ?, ?)",
+            [(user_id, s, k, v) for s, k, v in DEFAULT_RULES],
+        )
+        conn.commit()
+    return get_rules(db_path, user_id)
+
+
+# --- System Prompt ---
+
+def get_system_prompt(db_path: str, user_id: str = DEFAULT_USER_ID) -> dict | None:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT id, user_id, content, updated_at FROM system_prompt WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def upsert_system_prompt(
+    db_path: str, content: str, user_id: str = DEFAULT_USER_ID
+) -> dict:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        if conn.execute(
+            "SELECT 1 FROM system_prompt WHERE user_id = ?", (user_id,)
+        ).fetchone():
+            conn.execute(
+                "UPDATE system_prompt SET content = ?, updated_at = datetime('now') WHERE user_id = ?",
+                (content, user_id),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO system_prompt (user_id, content) VALUES (?, ?)",
+                (user_id, content),
+            )
+        conn.commit()
+        return dict(conn.execute(
+            "SELECT * FROM system_prompt WHERE user_id = ?", (user_id,)
+        ).fetchone())
+
+
+def reset_system_prompt(db_path: str, user_id: str = DEFAULT_USER_ID) -> dict:
+    return upsert_system_prompt(db_path, DEFAULT_SYSTEM_PROMPT, user_id)

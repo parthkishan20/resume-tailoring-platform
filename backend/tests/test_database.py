@@ -6,6 +6,9 @@ from app.database import (
     init_db, DEFAULT_RULES, DEFAULT_SYSTEM_PROMPT,
     get_master_resume, upsert_master_resume, delete_master_resume,
     list_resumes, create_resume, get_resume, update_resume, delete_resume,
+    get_chat_messages, add_chat_message, clear_chat,
+    get_rules, upsert_rules, reset_rules,
+    get_system_prompt, upsert_system_prompt, reset_system_prompt,
 )
 
 
@@ -180,3 +183,66 @@ def test_delete_resume(temp_db):
 def test_delete_resume_returns_false_for_missing(temp_db):
     init_db(temp_db)
     assert delete_resume(temp_db, 9999) is False
+
+
+# --- Chat Tests ---
+
+def test_add_and_get_chat_messages(temp_db):
+    init_db(temp_db)
+    add_chat_message(temp_db, "user", "Hello")
+    add_chat_message(temp_db, "assistant", "Hi there!")
+    msgs = get_chat_messages(temp_db)
+    assert len(msgs) == 2
+    assert msgs[0]["role"] == "user"
+    assert msgs[1]["role"] == "assistant"
+
+
+def test_clear_chat(temp_db):
+    init_db(temp_db)
+    add_chat_message(temp_db, "user", "Hello")
+    clear_chat(temp_db)
+    assert get_chat_messages(temp_db) == []
+
+
+# --- Rules Tests ---
+
+def test_get_rules_returns_seeded_defaults(temp_db):
+    init_db(temp_db)
+    rules = get_rules(temp_db)
+    assert len(rules) == len(DEFAULT_RULES)
+    keys = {(r["section"], r["rule_key"]) for r in rules}
+    assert ("experience", "max_entries") in keys
+
+
+def test_upsert_rules_updates_value(temp_db):
+    init_db(temp_db)
+    upsert_rules(temp_db, [{"section": "experience", "rule_key": "max_entries", "rule_value": "3"}])
+    rules = get_rules(temp_db)
+    exp_max = next(r for r in rules if r["section"] == "experience" and r["rule_key"] == "max_entries")
+    assert exp_max["rule_value"] == "3"
+
+
+def test_reset_rules_restores_defaults(temp_db):
+    init_db(temp_db)
+    upsert_rules(temp_db, [{"section": "experience", "rule_key": "max_entries", "rule_value": "99"}])
+    reset_rules(temp_db)
+    rules = get_rules(temp_db)
+    exp_max = next(r for r in rules if r["section"] == "experience" and r["rule_key"] == "max_entries")
+    assert exp_max["rule_value"] == "2"
+
+
+# --- System Prompt Tests ---
+
+def test_get_system_prompt_returns_seeded_default(temp_db):
+    init_db(temp_db)
+    sp = get_system_prompt(temp_db)
+    assert sp is not None
+    assert DEFAULT_SYSTEM_PROMPT in sp["content"]
+
+
+def test_upsert_and_reset_system_prompt(temp_db):
+    init_db(temp_db)
+    upsert_system_prompt(temp_db, "Custom prompt")
+    assert get_system_prompt(temp_db)["content"] == "Custom prompt"
+    reset_system_prompt(temp_db)
+    assert get_system_prompt(temp_db)["content"] == DEFAULT_SYSTEM_PROMPT
