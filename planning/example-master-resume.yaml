@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rendercv/rendercv/refs/tags/v2.8/schema.json
+cv:
+  name: John Doe
+  location: New York, NY
+  email: john.doe@example.com
+  phone: "+11234567890"
+  website: https://johndoe.com/
+  social_networks:
+  - network: LinkedIn
+    username: johndoe
+  - network: GitHub
+    username: johndoe
+  sections:
+    education:
+    - institution: University of Technology
+      area: Computer Science
+      degree: Master
+      start_date: 2024-09
+      end_date: 2026-05
+      summary: '  3.9/4.0 GPA'
+      highlights:
+      # - CS 101
+    experience:
+    - company: TechCorp
+      position: Software Engineer
+      start_date: 2023-01
+      end_date: 2024-08
+      location: New York, NY
+      highlights:
+      - Developed and maintained scalable web applications using React and Node.js.
+      - Integrated various third-party APIs and improved system performance by 20%.
+    projects:
+    - name: 'Open Source Project'
+      date: '[link](https://github.com/johndoe/project)'
+      highlights:
+      - Built a highly starred open source library used by thousands of developers.
+      - Implemented automated CI/CD pipelines.
+    skills:
+    - label: Skills
+      details: Python, JavaScript, React, Node.js, SQL, Git, Docker
