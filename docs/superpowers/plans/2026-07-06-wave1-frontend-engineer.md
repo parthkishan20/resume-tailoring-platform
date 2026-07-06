@@ -674,7 +674,7 @@ export default function EmptyState({ onImport, onLoadSample }: Props) {
           Start from Sample
         </button>
         <a
-          href="data:text/yaml;charset=utf-8," + encodeURIComponent(SAMPLE_YAML)}
+          href={`data:text/yaml;charset=utf-8,${encodeURIComponent(SAMPLE_YAML)}`}
           download="master-resume.yaml"
           className="px-4 py-2 border border-border text-foreground rounded hover:bg-card transition"
         >

@@ -497,9 +497,8 @@ from pydantic import BaseModel
 
 from ..backend_api import BackendAPI
 from ..config import get_settings
-from ..database import get_master_resume, upsert_master_resume, delete_master_resume, init_db
-from ..main import get_backend
-from ..prompts import GENERATION_SYSTEM_PROMPT  # reuse for import context
+from ..database import get_master_resume, upsert_master_resume, delete_master_resume
+from ..deps import get_backend
 
 router = APIRouter()
 
