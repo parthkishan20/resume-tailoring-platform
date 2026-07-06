@@ -121,7 +121,7 @@ The Integration Tester's first action is to run `docker build`. If that fails, i
 - `backend/pyproject.toml` — uv project; deps: `fastapi`, `uvicorn[standard]`, `litellm`, `rendercv`, `pymupdf`, `pydantic-settings`; dev deps: `pytest`, `pytest-asyncio`, `httpx`
 - `backend/app/config.py` — pydantic-settings `Settings` class reading `OPENROUTER_API_KEY`, `LLM_MODEL`, `LLM_MOCK`
 - `backend/app/backend_api.py` — `BackendAPI` facade + `create_real_backend()` factory
-- `backend/app/main.py` — FastAPI app; exception handlers for all port error types; static file serving (`frontend/out/` or `backend/static/`); dependency injection via `get_backend()`; mounts all routers
+- `backend/app/main.py` — FastAPI app; exception handlers for all port error types; static file serving from `backend/static/` (Dockerfile copies frontend export there at build time); dependency injection via `get_backend()`; mounts all routers
 - `backend/app/routes/` — one file per domain:
   - `health.py` — `GET /api/health`
   - `master_resume.py` — `GET/PUT/DELETE /api/master-resume`, `POST /api/master-resume/import`
