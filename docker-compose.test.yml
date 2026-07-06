@@ -12,8 +12,8 @@ services:
       - test-pdfs:/app/pdfs
     environment:
       - LLM_MOCK=true
-      - OPENROUTER_API_KEY=mock-key-not-used
-      - LLM_MODEL=openai/gpt-oss-120b:free
+      - OPENAI_API_KEY=mock-key-not-used
+      - LLM_MODEL=gpt-4o-mini
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]

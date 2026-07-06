@@ -5,8 +5,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    OPENROUTER_API_KEY: str = "mock-key"
-    LLM_MODEL: str = "openrouter/openai/gpt-oss-120b:free"
+    OPENAI_API_KEY: str = "mock-key"
+    LLM_MODEL: str = "gpt-4o-mini"
     LLM_MOCK: bool = False
     DB_PATH: str = "/app/db/resumedb.db"
     PDFS_DIR: str = "/app/pdfs"

@@ -28,7 +28,7 @@ def create_real_backend() -> BackendAPI:
     from .config import get_settings
     settings = get_settings()
     return BackendAPI(
-        llm=LiteLLMAdapter(model=settings.LLM_MODEL, api_key=settings.OPENROUTER_API_KEY),
+        llm=LiteLLMAdapter(model=settings.LLM_MODEL, api_key=settings.OPENAI_API_KEY),
         pdf_render=RenderCVAdapter(),
         pdf_extract=PyMuPDFAdapter(),
     )

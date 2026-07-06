@@ -8,7 +8,7 @@ PORT=8000
 
 # Check for .env file
 if [ ! -f ".env" ]; then
-  echo "Error: .env file not found. Copy .env.example to .env and set OPENROUTER_API_KEY."
+  echo "Error: .env file not found. Copy .env.example to .env and set OPENAI_API_KEY."
   exit 1
 fi
 

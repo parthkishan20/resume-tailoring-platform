@@ -6,7 +6,7 @@ $ImageName = "resumetailor"
 $Port = 8000
 
 if (-not (Test-Path ".env")) {
-    Write-Error "Error: .env file not found. Copy .env.example to .env and set OPENROUTER_API_KEY."
+    Write-Error "Error: .env file not found. Copy .env.example to .env and set OPENAI_API_KEY."
     exit 1
 }
 

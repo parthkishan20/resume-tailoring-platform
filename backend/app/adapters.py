@@ -11,7 +11,7 @@ from .ports import LLMAuthError, LLMUnavailableError, PDFExtractError, RenderErr
 class LiteLLMAdapter:
     def __init__(self, model: str, api_key: str) -> None:
         self._model = model
-        os.environ["OPENROUTER_API_KEY"] = api_key
+        os.environ["OPENAI_API_KEY"] = api_key
 
     async def complete(
         self, messages: list[dict], response_format: dict | None = None
