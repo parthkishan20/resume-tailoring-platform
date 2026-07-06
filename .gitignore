@@ -51,3 +51,16 @@ node_modules/
 frontend/.next/
 frontend/out/
 frontend/node_modules/
+
+# Backend build artifacts
+backend/__pycache__/
+backend/**/__pycache__/
+
+# Database (runtime file, not committed)
+db/resumedb.db
+
+# Generated PDFs (runtime, not committed)
+pdfs/
+
+# Windows
+Thumbs.db
