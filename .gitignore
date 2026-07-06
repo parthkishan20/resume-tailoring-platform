@@ -62,5 +62,9 @@ db/resumedb.db
 # Generated PDFs (runtime, not committed)
 pdfs/
 
+# Playwright test results
+test/test-results/
+test/playwright-report/
+
 # Windows
 Thumbs.db

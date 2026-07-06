@@ -15,7 +15,7 @@ test.describe("Scenario 8: Generation rules", () => {
   test("rules form is visible and can update a value", async ({ page }) => {
     await page.goto("/");
     // Open rules form
-    await page.getByText("Generation Rules").click();
+    await page.locator("[data-testid=rules-toggle]").click();
     await expect(page.locator("[data-testid=rules-form]")).toBeVisible();
     // Change a rule value
     const inputs = page.locator("[data-testid=rules-form] input");

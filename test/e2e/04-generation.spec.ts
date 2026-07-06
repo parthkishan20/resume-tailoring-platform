@@ -20,7 +20,7 @@ test.describe("Scenario 4: Resume generation", () => {
     await page.locator("[data-testid=generate-button]").click();
     // Wait for generation to complete (PDF preview appears)
     await expect(page.locator("[data-testid=generated-resume-preview]")).toBeVisible({ timeout: 30_000 });
-    // Resume name displayed
-    await expect(page.locator("[data-testid=resume-name]").first()).toBeVisible();
+    // Resume name displayed with correct content
+    await expect(page.locator("[data-testid=resume-name]").first()).toContainText(MOCK_RESUME_NAME_FRAGMENT);
   });
 });

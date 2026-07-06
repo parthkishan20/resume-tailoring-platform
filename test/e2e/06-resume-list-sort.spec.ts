@@ -25,8 +25,12 @@ test.describe("Scenario 6: Resume list sort", () => {
     await page.locator("[data-testid=sort-jd]").click();
     // List container still visible
     await expect(page.locator("[data-testid=resume-list]")).toBeVisible();
+    // List items rendered
+    await expect(page.locator("[data-testid=resume-list-item]").first()).toBeVisible();
     // Click back to date sort
     await page.locator("[data-testid=sort-date]").click();
     await expect(page.locator("[data-testid=resume-list]")).toBeVisible();
+    // List items rendered after re-sort
+    await expect(page.locator("[data-testid=resume-list-item]").first()).toBeVisible();
   });
 });
