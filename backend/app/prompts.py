@@ -110,6 +110,16 @@ OUTPUT FORMAT — CRITICAL
 
 
 - Output ONLY valid YAML. No markdown fences. No explanations. No comments.
+- The YAML must have EXACTLY TWO top-level keys: `cv:` and `design:`.
+- `design:` is NEVER nested inside `cv:`. It is always a top-level sibling key.
+- Copy the `design:` block verbatim from the master resume. Place it at the end.
+- YAML structure:
+    cv:
+      name: ...
+      sections:
+        ...
+    design:
+      theme: classic
 - First line must be: cv:
 - Last line must be the final YAML value. No trailing text.
 - YAML must parse cleanly with yaml.safe_load().
@@ -179,4 +189,5 @@ Then: output the corrected final YAML.
   - Output starts immediately after AUDIT_END.
   - No markdown fences. No explanations after the YAML.
   - First YAML line: cv:
+  - `design:` is ALWAYS a top-level key, NEVER nested inside `cv:`.
 """

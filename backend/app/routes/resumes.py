@@ -4,6 +4,7 @@ import asyncio
 import json
 from pathlib import Path
 
+import yaml
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
@@ -19,6 +20,16 @@ from ..ports import LLMAuthError, LLMUnavailableError, RenderError, PDFExtractEr
 from ..prompts import GENERATION_SYSTEM_PROMPT, CRITIQUE_SYSTEM_PROMPT
 
 router = APIRouter()
+
+
+def _fix_rendercv_yaml(yaml_content: str) -> str:
+    """Move `design:` to the top level if the LLM nested it inside `cv:`."""
+    data = yaml.safe_load(yaml_content)
+    if isinstance(data, dict):
+        cv = data.get("cv", {})
+        if isinstance(cv, dict) and "design" in cv:
+            data["design"] = cv.pop("design")
+    return yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
 
 def _db_path() -> str:
@@ -84,7 +95,7 @@ async def generate_resume_stream(
                     },
                 },
             )
-            draft_yaml = json.loads(gen_response)["yaml_content"]
+            draft_yaml = _fix_rendercv_yaml(json.loads(gen_response)["yaml_content"])
 
             yield _sse("progress", {"message": "Tailoring content..."})
 
@@ -100,6 +111,7 @@ async def generate_resume_stream(
                 final_yaml = audit_response.split("AUDIT_END", 1)[1].strip()
             else:
                 final_yaml = audit_response.strip()
+            final_yaml = _fix_rendercv_yaml(final_yaml)
 
             yield _sse("progress", {"message": "Rendering PDF..."})
 

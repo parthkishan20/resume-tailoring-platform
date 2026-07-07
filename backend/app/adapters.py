@@ -74,16 +74,17 @@ class RenderCVAdapter:
                 "--dont-generate-markdown",
                 "--dont-generate-html",
                 "--dont-generate-png",
-                "--dont-generate-typst",
-                "--quiet",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            _, stderr = await proc.communicate()
+            stdout, stderr = await proc.communicate()
             if proc.returncode != 0:
+                output = (
+                    stdout.decode("utf-8", errors="replace")
+                    + stderr.decode("utf-8", errors="replace")
+                ).strip()
                 raise RenderError(
-                    f"rendercv failed (exit {proc.returncode}): "
-                    f"{stderr.decode('utf-8', errors='replace')}"
+                    f"rendercv failed (exit {proc.returncode}): {output}"
                 )
             return pdf_path.read_bytes()
 
