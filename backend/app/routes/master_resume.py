@@ -13,13 +13,67 @@ from ..config import get_settings
 from ..database import get_master_resume, upsert_master_resume, delete_master_resume
 from ..deps import get_backend
 from ..ports import RenderError
+from ..yaml_utils import normalize_to_rendercv
 
 router = APIRouter()
 
-_IMPORT_SYSTEM_PROMPT = (
-    "You are a resume parser. Convert the following resume text to valid render-cv YAML format. "
-    "Output ONLY valid YAML. No markdown fences. No explanations. First line must be: cv:"
-)
+_IMPORT_SYSTEM_PROMPT = """\
+You are a resume parser. Convert the resume text to EXACTLY this rendercv YAML schema.
+
+SCHEMA (copy field names verbatim — do not invent new keys):
+
+cv:
+  name: Full Name
+  email: email@example.com
+  phone: "+1-555-000-0000"
+  location: City, State
+  website: example.com          # omit if not present
+  social_networks:              # omit entire block if no socials
+    - network: LinkedIn         # must be exactly "LinkedIn" or "GitHub"
+      username: handle-only     # username only, no URL prefix
+    - network: GitHub
+      username: handle-only
+  sections:
+    experience:
+      - company: Company Name
+        position: Job Title
+        location: City, State
+        start_date: "2023-01"   # YYYY-MM format
+        end_date: "2024-08"     # YYYY-MM or "present"
+        highlights:
+          - Past-tense bullet describing achievement (one sentence)
+    education:
+      - institution: University Name
+        area: Field of Study
+        degree: "MS"            # short form: BS, MS, PhD, etc.
+        start_date: "2024-09"
+        end_date: "2026-05"
+        highlights:
+          - "GPA: 3.9/4.0"
+    projects:
+      - name: Project Name
+        date: "2024"
+        url: https://...        # omit if not present
+        highlights:
+          - Past-tense bullet
+    skills:
+      - label: "Category Name"
+        details: "Skill1, Skill2, Skill3"
+    certifications:             # omit section if none
+      - name: Cert Name
+        date: "2023"
+design:
+  theme: classic
+
+RULES:
+- Output ONLY the YAML above — no markdown fences, no prose.
+- First line must be: cv:
+- All section entries go under cv.sections — NEVER directly under cv.
+- social_networks username must be the handle only, strip any URL.
+- dates must be YYYY-MM (e.g. "2023-01"). Use "present" for current roles.
+- highlights must be a list of strings, one bullet per line.
+- Omit optional fields (url, website, certifications) when not in source.
+"""
 
 
 def _db_path() -> str:
@@ -62,7 +116,7 @@ async def preview_master_resume(
         raise HTTPException(status_code=404, detail="No master resume found")
 
     try:
-        pdf_bytes = await backend.render(row["yaml_content"])
+        pdf_bytes = await backend.render(normalize_to_rendercv(row["yaml_content"]))
     except RenderError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
@@ -98,6 +152,6 @@ async def import_pdf(
         ],
         response_format=response_format,
     )
-    yaml_content = json.loads(result_str)["yaml_content"]
+    yaml_content = normalize_to_rendercv(json.loads(result_str)["yaml_content"])
     row = await asyncio.to_thread(upsert_master_resume, _db_path(), yaml_content)
     return row

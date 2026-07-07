@@ -4,7 +4,6 @@ import asyncio
 import json
 from pathlib import Path
 
-import yaml
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
@@ -18,18 +17,9 @@ from ..database import (
 from ..deps import get_backend
 from ..ports import LLMAuthError, LLMUnavailableError, RenderError, PDFExtractError
 from ..prompts import GENERATION_SYSTEM_PROMPT, CRITIQUE_SYSTEM_PROMPT
+from ..yaml_utils import normalize_to_rendercv
 
 router = APIRouter()
-
-
-def _fix_rendercv_yaml(yaml_content: str) -> str:
-    """Move `design:` to the top level if the LLM nested it inside `cv:`."""
-    data = yaml.safe_load(yaml_content)
-    if isinstance(data, dict):
-        cv = data.get("cv", {})
-        if isinstance(cv, dict) and "design" in cv:
-            data["design"] = cv.pop("design")
-    return yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
 
 def _db_path() -> str:
@@ -75,11 +65,14 @@ async def generate_resume_stream(
 
             yield _sse("progress", {"message": "Analyzing job description..."})
 
+            # Normalise master resume to valid rendercv before feeding to the LLM
+            master_yaml = normalize_to_rendercv(master["yaml_content"])
+
             # Pass 1: generate
             gen_response = await api.complete(
                 [
                     {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
-                    {"role": "user", "content": f"JD:\n{body.job_description}\n\nMaster:\n{master['yaml_content']}"},
+                    {"role": "user", "content": f"JD:\n{body.job_description}\n\nMaster:\n{master_yaml}"},
                 ],
                 response_format={
                     "type": "json_schema",
@@ -95,7 +88,7 @@ async def generate_resume_stream(
                     },
                 },
             )
-            draft_yaml = _fix_rendercv_yaml(json.loads(gen_response)["yaml_content"])
+            draft_yaml = normalize_to_rendercv(json.loads(gen_response)["yaml_content"])
 
             yield _sse("progress", {"message": "Tailoring content..."})
 
@@ -103,7 +96,7 @@ async def generate_resume_stream(
             audit_response = await api.complete(
                 [
                     {"role": "system", "content": CRITIQUE_SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Draft:\n{draft_yaml}\n\nMaster:\n{master['yaml_content']}\n\nJD:\n{body.job_description}"},
+                    {"role": "user", "content": f"Draft:\n{draft_yaml}\n\nMaster:\n{master_yaml}\n\nJD:\n{body.job_description}"},
                 ]
             )
             # Strip AUDIT_START...AUDIT_END block
@@ -111,7 +104,7 @@ async def generate_resume_stream(
                 final_yaml = audit_response.split("AUDIT_END", 1)[1].strip()
             else:
                 final_yaml = audit_response.strip()
-            final_yaml = _fix_rendercv_yaml(final_yaml)
+            final_yaml = normalize_to_rendercv(final_yaml)
 
             yield _sse("progress", {"message": "Rendering PDF..."})
 
