@@ -161,6 +161,9 @@ def _normalize_projects(entries: list[Any]) -> list[dict]:
     return out
 
 
+_MARKDOWN_LINK_RE = re.compile(r"^\[([^\]]+)\]\((https?://[^)]+)\)$")
+
+
 def _normalize_certifications(entries: list[Any]) -> list[dict]:
     """Convert certification entries to rendercv NormalEntry (name + highlights).
 
@@ -171,15 +174,28 @@ def _normalize_certifications(entries: list[Any]) -> list[dict]:
     for e in entries:
         if not isinstance(e, dict):
             continue
-        # Resolve the name
-        name = e.get("name") or e.get("title") or e.get("certificate") or ""
-        issuer = e.get("institution") or e.get("issuer") or e.get("organization") or ""
-        date = e.get("date") or e.get("year") or ""
+        # Resolve the name — also accept experience-style keys
+        name = (
+            e.get("name") or e.get("title") or e.get("certificate")
+            or e.get("position") or ""
+        )
+        issuer = (
+            e.get("institution") or e.get("issuer") or e.get("organization")
+            or e.get("company") or ""
+        )
+        date_raw = str(e.get("date") or e.get("year") or "")
         norm: dict[str, Any] = {"name": name}
-        if date:
-            norm["date"] = str(date)
+        highlights: list[str] = []
         if issuer:
-            norm["highlights"] = [f"Issued by {issuer}"]
+            highlights.append(f"Issued by {issuer}")
+        # If date is a markdown link, render it as a highlight (rendercv renders
+        # markdown in highlights but not in the date field).
+        if date_raw and _MARKDOWN_LINK_RE.match(date_raw):
+            highlights.append(date_raw)
+        elif date_raw:
+            norm["date"] = date_raw
+        if highlights:
+            norm["highlights"] = highlights
         out.append(norm)
     return out
 

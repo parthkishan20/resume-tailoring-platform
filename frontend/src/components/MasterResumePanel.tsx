@@ -67,7 +67,7 @@ export default function MasterResumePanel({ resume, onSave, onDelete }: Props) {
         </div>
       </div>
       {error && <p className="px-4 py-1 text-xs text-error">{error}</p>}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {showPreview ? (
           <PdfPreview key={previewKey} pdfUrl="/api/master-resume/preview" testId="resume-preview" />
         ) : (

@@ -65,6 +65,12 @@ pdfs/
 # Playwright test results
 test/test-results/
 test/playwright-report/
+.playwright-mcp/
+
+# Build artifacts
+backend/static/
+frontend/out/
+frontend/.next/
 
 # Windows
 Thumbs.db
