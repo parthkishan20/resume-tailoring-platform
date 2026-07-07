@@ -9,8 +9,7 @@ rendercv schema summary:
       projects:     [{name, date, url, highlights}]
       skills:       [{label, details}]
       certifications: [{name, date, highlights}]
-  design:
-    theme: classic
+  (design is stripped from output — provided externally via --design CLI flag)
 """
 from __future__ import annotations
 import re
