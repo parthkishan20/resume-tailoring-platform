@@ -222,11 +222,9 @@ def normalize_to_rendercv(yaml_content: str) -> str:
     if not isinstance(cv, dict):
         return yaml_content
 
-    # 1. Hoist design: to top level
-    if "design" in cv:
-        data["design"] = cv.pop("design")
-    if "design" not in data:
-        data["design"] = {"theme": "classic"}
+    # 1. Strip any design block — design is provided via --design CLI flag
+    cv.pop("design", None)
+    data.pop("design", None)
 
     # 2. Flatten contact block into cv.*
     contact = cv.pop("contact", None)
