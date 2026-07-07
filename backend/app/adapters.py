@@ -7,6 +7,8 @@ from typing import AsyncIterator
 
 from .ports import LLMAuthError, LLMUnavailableError, PDFExtractError, RenderError
 
+_CONFIG_DIR = Path(__file__).parent.parent / "rendercv_config"
+
 
 class LiteLLMAdapter:
     def __init__(self, model: str, api_key: str) -> None:
@@ -70,6 +72,8 @@ class RenderCVAdapter:
             yaml_path.write_text(yaml_content, encoding="utf-8")
             proc = await asyncio.create_subprocess_exec(
                 "rendercv", "render", str(yaml_path),
+                "--design", str(_CONFIG_DIR / "design.yaml"),
+                "--locale", str(_CONFIG_DIR / "locale.yaml"),
                 "--pdf-path", str(pdf_path),
                 "--dont-generate-markdown",
                 "--dont-generate-html",

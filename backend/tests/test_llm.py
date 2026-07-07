@@ -95,6 +95,25 @@ async def test_rendercv_adapter_maps_nonzero_exit_to_render_error():
             await adapter.render("bad: yaml")
 
 
+@pytest.mark.anyio
+async def test_rendercv_adapter_passes_design_and_locale_flags():
+    from app.adapters import RenderCVAdapter, _CONFIG_DIR
+    adapter = RenderCVAdapter()
+    proc_mock = MagicMock()
+    proc_mock.returncode = 1  # fail early — we only care about the call args
+    proc_mock.communicate = AsyncMock(return_value=(b"", b"err"))
+    with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = proc_mock
+        with pytest.raises(RenderError):
+            await adapter.render("cv:\n  name: Test\n")
+    call_args = mock_exec.call_args[0]  # positional args tuple
+    cmd_str = " ".join(str(a) for a in call_args)
+    assert "--design" in cmd_str
+    assert "--locale" in cmd_str
+    assert str(_CONFIG_DIR / "design.yaml") in cmd_str
+    assert str(_CONFIG_DIR / "locale.yaml") in cmd_str
+
+
 # ---------------------------------------------------------------------------
 # Task 3 — Mock PDF fixture + Tier 1 SimulatedBackendAPI
 # ---------------------------------------------------------------------------
