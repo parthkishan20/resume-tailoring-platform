@@ -5,6 +5,8 @@ import tempfile
 from pathlib import Path
 from typing import AsyncIterator
 
+import yaml
+
 from .ports import LLMAuthError, LLMUnavailableError, PDFExtractError, RenderError
 
 _CONFIG_DIR = Path(__file__).parent.parent / "rendercv_config"
@@ -69,11 +71,22 @@ class RenderCVAdapter:
             tmpdir_path = Path(tmpdir)
             yaml_path = tmpdir_path / "resume.yaml"
             pdf_path = tmpdir_path / "resume.pdf"
+
+            # Embed locale as a top-level key — rendercv --locale flag expects a
+            # dict, not a file path, so we inject the content directly into the YAML.
+            data = yaml.safe_load(yaml_content) or {}
+            if "locale" not in data:
+                locale_raw = (_CONFIG_DIR / "locale.yaml").read_text(encoding="utf-8")
+                locale_data = yaml.safe_load(locale_raw) or {}
+                data.update(locale_data)
+                yaml_content = yaml.dump(
+                    data, default_flow_style=False, allow_unicode=True, sort_keys=False
+                )
+
             yaml_path.write_text(yaml_content, encoding="utf-8")
             proc = await asyncio.create_subprocess_exec(
                 "rendercv", "render", str(yaml_path),
                 "--design", str(_CONFIG_DIR / "design.yaml"),
-                "--locale", str(_CONFIG_DIR / "locale.yaml"),
                 "--pdf-path", str(pdf_path),
                 "--dont-generate-markdown",
                 "--dont-generate-html",

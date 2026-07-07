@@ -96,22 +96,32 @@ async def test_rendercv_adapter_maps_nonzero_exit_to_render_error():
 
 
 @pytest.mark.anyio
-async def test_rendercv_adapter_passes_design_and_locale_flags():
+async def test_rendercv_adapter_passes_design_flag_and_embeds_locale():
     from app.adapters import RenderCVAdapter, _CONFIG_DIR
+    import yaml as _yaml
     adapter = RenderCVAdapter()
     proc_mock = MagicMock()
     proc_mock.returncode = 1  # fail early — we only care about the call args
     proc_mock.communicate = AsyncMock(return_value=(b"", b"err"))
-    with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec:
-        mock_exec.return_value = proc_mock
-        with pytest.raises(RenderError):
-            await adapter.render("cv:\n  name: Test\n")
-    call_args = mock_exec.call_args[0]  # positional args tuple
-    cmd_str = " ".join(str(a) for a in call_args)
+
+    dumped_data = []
+    real_dump = _yaml.dump
+
+    def capture_dump(data, **kwargs):
+        dumped_data.append(data)
+        return real_dump(data, **kwargs)
+
+    with patch("app.adapters.yaml.dump", side_effect=capture_dump):
+        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = proc_mock
+            with pytest.raises(RenderError):
+                await adapter.render("cv:\n  name: Test\n")
+
+    cmd_str = " ".join(str(a) for a in mock_exec.call_args[0])
     assert "--design" in cmd_str
-    assert "--locale" in cmd_str
     assert str(_CONFIG_DIR / "design.yaml") in cmd_str
-    assert str(_CONFIG_DIR / "locale.yaml") in cmd_str
+    assert "--locale" not in cmd_str
+    assert dumped_data and "locale" in dumped_data[0]
 
 
 # ---------------------------------------------------------------------------
