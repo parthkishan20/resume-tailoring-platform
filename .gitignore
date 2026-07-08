@@ -69,8 +69,6 @@ test/playwright-report/
 
 # Build artifacts
 backend/static/
-frontend/out/
-frontend/.next/
 
 # Windows
 Thumbs.db

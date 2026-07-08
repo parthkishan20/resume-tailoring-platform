@@ -107,12 +107,12 @@ export default function GenerationPanel({ masterResume: _masterResume, onGenerat
         )}
       </div>
       {generated && (
-        <div className="flex-1 flex flex-col gap-2">
+        <div className="flex-1 min-h-0 flex flex-col gap-2">
           <p data-testid="resume-name" className="text-sm font-medium text-foreground">
             {generated.name}
           </p>
           {generated.pdf_path && (
-            <div className="flex-1">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <PdfPreview
                 pdfUrl={`/api/resumes/${generated.id}/pdf`}
                 testId="generated-resume-preview"

@@ -1,5 +1,5 @@
 import yaml
-from app.yaml_utils import normalize_to_rendercv
+from app.yaml_utils import _normalize_certifications, normalize_to_rendercv
 
 
 def test_no_design_injected_when_absent():
@@ -40,3 +40,45 @@ def test_top_level_design_stripped():
     )
     result = yaml.safe_load(normalize_to_rendercv(raw))
     assert "design" not in result
+
+
+def test_certifications_basic_entry():
+    """Standard entry: issuer becomes a highlight, plain date stays in date."""
+    out = _normalize_certifications(
+        [{"name": "AWS Developer", "issuer": "Amazon", "date": "2023"}]
+    )
+    assert out == [
+        {"name": "AWS Developer", "date": "2023", "highlights": ["Issued by Amazon"]}
+    ]
+
+
+def test_certifications_experience_style_keys():
+    """LLM sometimes routes experience-shaped entries into certifications."""
+    out = _normalize_certifications([{"position": "Engineer", "company": "Acme"}])
+    assert out == [{"name": "Engineer", "highlights": ["Issued by Acme"]}]
+
+
+def test_certifications_markdown_link_date_moved_to_highlights():
+    """Markdown-link dates render in highlights, not the date field."""
+    out = _normalize_certifications(
+        [{"name": "Cert", "date": "[Credential](https://example.com/cert)"}]
+    )
+    assert out == [
+        {"name": "Cert", "highlights": ["[Credential](https://example.com/cert)"]}
+    ]
+    assert "date" not in out[0]
+
+
+def test_certifications_markdown_link_with_parens_in_url():
+    """URLs containing ')' must still be recognised as markdown links."""
+    link = "[Verify](https://example.com/cert_(2023))"
+    out = _normalize_certifications([{"name": "Cert", "date": link}])
+    assert out == [{"name": "Cert", "highlights": [link]}]
+
+
+def test_certifications_markdown_link_date_with_whitespace():
+    """Surrounding whitespace must not defeat markdown-link detection."""
+    out = _normalize_certifications(
+        [{"name": "Cert", "date": " [Verify](https://example.com) "}]
+    )
+    assert out == [{"name": "Cert", "highlights": ["[Verify](https://example.com)"]}]

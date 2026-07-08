@@ -12,10 +12,13 @@ rendercv schema summary:
   (design is stripped from output — provided externally via --design CLI flag)
 """
 from __future__ import annotations
+import logging
 import re
 from typing import Any
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 _MONTH_MAP = {
@@ -161,7 +164,8 @@ def _normalize_projects(entries: list[Any]) -> list[dict]:
     return out
 
 
-_MARKDOWN_LINK_RE = re.compile(r"^\[([^\]]+)\]\((https?://[^)]+)\)$")
+# Greedy URL match so parentheses inside the URL don't stop at the first ")".
+_MARKDOWN_LINK_RE = re.compile(r"^\[([^\]]+)\]\((https?://.+)\)$")
 
 
 def _normalize_certifications(entries: list[Any]) -> list[dict]:
@@ -175,15 +179,23 @@ def _normalize_certifications(entries: list[Any]) -> list[dict]:
         if not isinstance(e, dict):
             continue
         # Resolve the name — also accept experience-style keys
-        name = (
-            e.get("name") or e.get("title") or e.get("certificate")
-            or e.get("position") or ""
-        )
+        name = e.get("name") or e.get("title") or e.get("certificate") or ""
         issuer = (
-            e.get("institution") or e.get("issuer") or e.get("organization")
-            or e.get("company") or ""
+            e.get("institution") or e.get("issuer") or e.get("organization") or ""
         )
-        date_raw = str(e.get("date") or e.get("year") or "")
+        # Fall back to experience-style keys, but warn: their presence means the
+        # LLM routed an experience-shaped entry into certifications.
+        if not name and e.get("position"):
+            name = e["position"]
+            logger.warning(
+                "certification entry used experience-style 'position' key: %r", e
+            )
+        if not issuer and e.get("company"):
+            issuer = e["company"]
+            logger.warning(
+                "certification entry used experience-style 'company' key: %r", e
+            )
+        date_raw = str(e.get("date") or e.get("year") or "").strip()
         norm: dict[str, Any] = {"name": name}
         highlights: list[str] = []
         if issuer:
