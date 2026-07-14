@@ -62,3 +62,5 @@ export interface SseErrorEvent { error: string; code: string; }
 
 export type SortField = "date" | "jd";
 export type SortOrder = "asc" | "desc";
+
+export type View = "editor" | "generate" | "resumes" | "evaluate";

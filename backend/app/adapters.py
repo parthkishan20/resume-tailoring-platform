@@ -12,6 +12,16 @@ from .ports import LLMAuthError, LLMUnavailableError, PDFExtractError, RenderErr
 _CONFIG_DIR = Path(__file__).parent.parent / "rendercv_config"
 
 
+def _llm_exceptions() -> tuple[type[Exception], tuple[type[Exception], ...]]:
+    """Return (auth_error, unavailable_errors). Lazy: importing litellm is slow."""
+    import litellm.exceptions as llm_exc  # noqa: PLC0415
+    return llm_exc.AuthenticationError, (
+        llm_exc.RateLimitError,
+        llm_exc.ServiceUnavailableError,
+        llm_exc.APIConnectionError,
+    )
+
+
 class LiteLLMAdapter:
     def __init__(self, model: str, api_key: str) -> None:
         self._model = model
@@ -20,32 +30,22 @@ class LiteLLMAdapter:
     async def complete(
         self, messages: list[dict], response_format: dict | None = None
     ) -> str:
-        import litellm  # noqa: PLC0415 — lazy import (not installed until Wave 2)
-        import litellm.exceptions as llm_exc  # noqa: PLC0415
-        _llm_unavailable = (
-            llm_exc.RateLimitError,
-            llm_exc.ServiceUnavailableError,
-            llm_exc.APIConnectionError,
-        )
+        import litellm  # noqa: PLC0415 — lazy import, litellm is slow to load
+        auth_error, unavailable = _llm_exceptions()
         kwargs: dict = {"model": self._model, "messages": messages}
         if response_format is not None:
             kwargs["response_format"] = response_format
         try:
             response = await litellm.acompletion(**kwargs)
             return response.choices[0].message.content
-        except llm_exc.AuthenticationError as exc:
-            raise LLMAuthError("Invalid OpenRouter API key") from exc
-        except _llm_unavailable as exc:
+        except auth_error as exc:
+            raise LLMAuthError("Invalid LLM API key (check OPENAI_API_KEY)") from exc
+        except unavailable as exc:
             raise LLMUnavailableError(str(exc)) from exc
 
     async def stream(self, messages: list[dict]) -> AsyncIterator[str]:
-        import litellm  # noqa: PLC0415 — lazy import (not installed until Wave 2)
-        import litellm.exceptions as llm_exc  # noqa: PLC0415
-        _llm_unavailable = (
-            llm_exc.RateLimitError,
-            llm_exc.ServiceUnavailableError,
-            llm_exc.APIConnectionError,
-        )
+        import litellm  # noqa: PLC0415 — lazy import, litellm is slow to load
+        auth_error, unavailable = _llm_exceptions()
         model = self._model
 
         async def _gen() -> AsyncIterator[str]:
@@ -53,9 +53,9 @@ class LiteLLMAdapter:
                 response = await litellm.acompletion(
                     model=model, messages=messages, stream=True
                 )
-            except llm_exc.AuthenticationError as exc:
-                raise LLMAuthError("Invalid OpenRouter API key") from exc
-            except _llm_unavailable as exc:
+            except auth_error as exc:
+                raise LLMAuthError("Invalid LLM API key (check OPENAI_API_KEY)") from exc
+            except unavailable as exc:
                 raise LLMUnavailableError(str(exc)) from exc
             async for chunk in response:
                 delta = chunk.choices[0].delta.content
@@ -112,17 +112,19 @@ class PyMuPDFAdapter:
 
     async def extract(self, pdf_bytes: bytes) -> str:
         if len(pdf_bytes) > self._MAX_BYTES:
-            raise ValueError(
+            raise PDFExtractError(
                 f"PDF exceeds 10 MB limit ({len(pdf_bytes) / 1_048_576:.1f} MB)"
             )
         try:
-            import pymupdf  # noqa: PLC0415 — lazy import (not installed until Wave 2)
+            import pymupdf  # noqa: PLC0415 — lazy import, pymupdf is slow to load
             doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
         except Exception as exc:
             raise PDFExtractError(f"Cannot open PDF: {exc}") from exc
         if doc.page_count > self._MAX_PAGES:
             doc.close()
-            raise ValueError(f"PDF has {doc.page_count} pages (max {self._MAX_PAGES})")
+            raise PDFExtractError(
+                f"PDF has {doc.page_count} pages (max {self._MAX_PAGES})"
+            )
         pages = [page.get_text() for page in doc]
         doc.close()
         return "\n\n".join(pages)

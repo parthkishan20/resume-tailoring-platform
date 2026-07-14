@@ -28,6 +28,17 @@ async def test_put_rules_updates(client, tmp_path, monkeypatch):
 
 
 @pytest.mark.anyio
+async def test_put_rules_rejects_malformed_payload(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
+    from app.config import get_settings; get_settings.cache_clear()
+    from app.database import init_db; import asyncio; await asyncio.to_thread(init_db, str(tmp_path / "test.db"))
+    response = await client.put("/api/rules", json={
+        "rules": [{"section": "experience"}]  # missing rule_key / rule_value
+    })
+    assert response.status_code == 422
+
+
+@pytest.mark.anyio
 async def test_delete_rules_resets(client, tmp_path, monkeypatch):
     monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
     from app.config import get_settings; get_settings.cache_clear()

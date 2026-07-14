@@ -12,8 +12,14 @@ def _db_path():
     return get_settings().DB_PATH
 
 
+class RuleItem(BaseModel):
+    section: str
+    rule_key: str
+    rule_value: str
+
+
 class RulesBody(BaseModel):
-    rules: list[dict]
+    rules: list[RuleItem]
 
 
 @router.get("/api/rules")
@@ -23,7 +29,9 @@ async def get():
 
 @router.put("/api/rules")
 async def update(body: RulesBody):
-    return await asyncio.to_thread(upsert_rules, _db_path(), body.rules)
+    return await asyncio.to_thread(
+        upsert_rules, _db_path(), [r.model_dump() for r in body.rules]
+    )
 
 
 @router.delete("/api/rules")

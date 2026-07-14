@@ -14,6 +14,8 @@ test.describe("Scenario 8: Generation rules", () => {
 
   test("rules form is visible and can update a value", async ({ page }) => {
     await page.goto("/");
+    // Open the Generate view (editor is the default view)
+    await page.locator("[data-testid=nav-generate]").click();
     // Open rules form
     await page.locator("[data-testid=rules-toggle]").click();
     await expect(page.locator("[data-testid=rules-form]")).toBeVisible();
@@ -34,6 +36,7 @@ test.describe("Scenario 8: Generation rules", () => {
       },
     });
     // Generate
+    await page.locator("[data-testid=nav-generate]").click();
     await page.locator("[data-testid=job-description]").fill(SAMPLE_JD);
     await page.locator("[data-testid=generate-button]").click();
     await expect(page.locator("[data-testid=generated-resume-preview]")).toBeVisible({

@@ -15,6 +15,9 @@ from ..ports import LLMAuthError, LLMUnavailableError
 
 router = APIRouter()
 
+# Cap what we send to the LLM; full history is still persisted and displayed.
+LLM_HISTORY_LIMIT = 30
+
 
 def _db_path() -> str:
     return get_settings().DB_PATH
@@ -45,7 +48,10 @@ async def chat_stream(body: ChatRequest, api: BackendAPI = Depends(get_backend))
             sp_row = await asyncio.to_thread(get_system_prompt, _db_path())
             system_content = sp_row["content"] if sp_row else "You are ResumeTailor, an AI assistant."
             messages = [{"role": "system", "content": system_content}]
-            messages += [{"role": m["role"], "content": m["content"]} for m in history]
+            messages += [
+                {"role": m["role"], "content": m["content"]}
+                for m in history[-LLM_HISTORY_LIMIT:]
+            ]
 
             # Stream response
             full_text = ""
@@ -64,7 +70,8 @@ async def chat_stream(body: ChatRequest, api: BackendAPI = Depends(get_backend))
         except Exception as exc:
             yield _sse("error", {"error": str(exc), "code": "CHAT_FAILED"})
 
-    return StreamingResponse(event_gen(), media_type="text/event-stream")
+    return StreamingResponse(event_gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache"})
 
 
 @router.delete("/api/chat", status_code=204)

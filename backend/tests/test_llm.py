@@ -124,6 +124,14 @@ async def test_rendercv_adapter_passes_design_flag_and_embeds_locale():
     assert dumped_data and "locale" in dumped_data[0]
 
 
+@pytest.mark.anyio
+async def test_pymupdf_adapter_oversized_pdf_raises_extract_error():
+    from app.adapters import PyMuPDFAdapter
+    adapter = PyMuPDFAdapter()
+    with pytest.raises(PDFExtractError):
+        await adapter.extract(b"x" * (adapter._MAX_BYTES + 1))
+
+
 # ---------------------------------------------------------------------------
 # Task 3 — Mock PDF fixture + Tier 1 SimulatedBackendAPI
 # ---------------------------------------------------------------------------
@@ -147,15 +155,13 @@ def test_mock_constants_match_plan():
 
 
 @pytest.mark.anyio
-async def test_simulator_stream_yields_chat_result():
+async def test_simulator_stream_yields_chat_text():
     sim = SimulatedBackendAPI()
     chunks = []
     async for chunk in await sim.stream([{"role": "user", "content": "hi"}]):
         chunks.append(chunk)
     assert len(chunks) > 0
-    combined = "".join(chunks)
-    parsed = json.loads(combined)
-    assert parsed == MOCK_CHAT_RESULT
+    assert "".join(chunks) == MOCK_CHAT_RESULT["text"]
 
 
 @pytest.mark.anyio

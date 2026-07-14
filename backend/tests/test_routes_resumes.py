@@ -75,6 +75,35 @@ async def test_generate_resume_sse_error_llm_auth(client, sim, tmp_path, monkeyp
 
 
 @pytest.mark.anyio
+async def test_generate_injects_rules_into_prompts(client, sim, tmp_path, monkeypatch):
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
+    monkeypatch.setenv("PDFS_DIR", str(tmp_path / "pdfs"))
+    from app.config import get_settings; get_settings.cache_clear()
+    from app.database import init_db, upsert_master_resume, upsert_rules
+    import asyncio
+    db = str(tmp_path / "test.db")
+    await asyncio.to_thread(init_db, db)
+    await asyncio.to_thread(upsert_master_resume, db, MOCK_GENERATION_RESULT_YAML)
+    await asyncio.to_thread(
+        upsert_rules, db,
+        [{"section": "experience", "rule_key": "max_entries", "rule_value": "7"}],
+    )
+
+    sim.sim_llm.set_complete_response(json.dumps({"yaml_content": MOCK_GENERATION_RESULT_YAML}))
+    sim.sim_pdf_render.set_response(b"%PDF-1.4 test")
+
+    response = await client.post(
+        "/api/resumes/stream",
+        json={"job_description": "Software Engineer at Mock Corp"},
+    )
+    assert response.status_code == 200
+    # last_complete_messages holds the critique (pass 2) call; both passes get the block
+    system_content = sim.sim_llm.last_complete_messages[0]["content"]
+    assert "USER-CONFIGURED LIMITS" in system_content
+    assert "experience.max_entries = 7" in system_content
+
+
+@pytest.mark.anyio
 async def test_get_resume_404(client, tmp_path, monkeypatch):
     monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
     from app.config import get_settings; get_settings.cache_clear()

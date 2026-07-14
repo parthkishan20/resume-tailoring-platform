@@ -96,7 +96,7 @@ class SimulatedBackendAPI:
 
     async def stream(self, messages: list[dict]) -> AsyncIterator[str]:
         async def _gen() -> AsyncIterator[str]:
-            yield json.dumps(MOCK_CHAT_RESULT)
+            yield MOCK_CHAT_RESULT["text"]
 
         return _gen()
 

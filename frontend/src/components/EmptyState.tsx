@@ -1,5 +1,8 @@
 "use client";
 import { useState, useRef } from "react";
+import { UploadCloud, FileDown } from "lucide-react";
+import Button from "./ui/Button";
+import Spinner from "./ui/Spinner";
 import type { MasterResume } from "@/lib/types";
 import { api } from "@/lib/api";
 
@@ -33,7 +36,7 @@ const SAMPLE_YAML = `cv:
 
 interface Props {
   onImport: (resume: MasterResume) => void;
-  onLoadSample: (yaml: string) => void;
+  onLoadSample: (yaml: string) => Promise<void>;
 }
 
 export default function EmptyState({ onImport, onLoadSample }: Props) {
@@ -41,8 +44,17 @@ export default function EmptyState({ onImport, onLoadSample }: Props) {
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  async function handleLoadSample() {
+    setError(null);
+    try {
+      await onLoadSample(SAMPLE_YAML);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load sample");
+    }
+  }
+
   async function handleFile(file: File) {
-    if (!file.name.endsWith(".pdf")) { setError("Please upload a PDF file."); return; }
+    if (!file.name.toLowerCase().endsWith(".pdf")) { setError("Please upload a PDF file."); return; }
     setImporting(true);
     setError(null);
     try {
@@ -64,28 +76,33 @@ export default function EmptyState({ onImport, onLoadSample }: Props) {
   return (
     <div
       data-testid="empty-state"
-      className="flex flex-col items-center justify-center h-full gap-8 p-8 text-center"
+      className="flex h-screen flex-col items-center justify-center gap-10 p-8 text-center"
     >
-      <div>
-        <h2 className="text-2xl font-semibold text-foreground mb-2">Welcome to ResumeTailor</h2>
-        <p className="text-muted-foreground max-w-md">
-          Start by creating your master resume — the single source of truth for all generated resumes.
-        </p>
+      <div className="flex flex-col items-center gap-5">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface-1 font-display text-2xl italic text-accent">
+          R
+        </div>
+        <div>
+          <h1 className="font-display text-4xl text-foreground">
+            Every job deserves a <span className="italic text-accent">tailored</span> resume.
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+            Keep one master resume as your single source of truth. ResumeTailor cuts and
+            re-stitches it to fit each job description.
+          </p>
+        </div>
       </div>
 
-      <div className="flex gap-4">
-        <button
-          onClick={() => onLoadSample(SAMPLE_YAML)}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary-hover transition"
-        >
+      <div className="flex items-center gap-3">
+        <Button variant="primary" onClick={handleLoadSample}>
           Start from Sample
-        </button>
+        </Button>
         <a
           href={`data:text/yaml;charset=utf-8,${encodeURIComponent(SAMPLE_YAML)}`}
           download="master-resume.yaml"
-          className="px-4 py-2 border border-border text-foreground rounded hover:bg-card transition"
+          className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-surface-1 px-4 text-sm text-foreground transition-colors hover:border-border-strong hover:bg-surface-2"
         >
-          Download Sample YAML
+          <FileDown size={15} /> Download Sample YAML
         </a>
       </div>
 
@@ -94,7 +111,7 @@ export default function EmptyState({ onImport, onLoadSample }: Props) {
         onDrop={onDrop}
         onDragOver={(e) => e.preventDefault()}
         onClick={() => fileRef.current?.click()}
-        className="border-2 border-dashed border-border rounded-lg p-8 w-full max-w-md cursor-pointer hover:border-primary transition"
+        className="seam-dashed w-full max-w-md cursor-pointer rounded-xl border-2 bg-surface-1/50 p-8 transition-colors hover:bg-accent-dim"
       >
         <input
           ref={fileRef}
@@ -104,20 +121,32 @@ export default function EmptyState({ onImport, onLoadSample }: Props) {
           onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
         />
         {importing ? (
-          <p className="text-muted-foreground">Importing PDF...</p>
+          <div className="flex flex-col items-center gap-2">
+            <Spinner className="text-accent" />
+            <p className="text-sm text-muted-foreground">Converting your PDF to YAML…</p>
+          </div>
         ) : (
-          <>
-            <p className="text-foreground font-medium">Drop your existing resume PDF here</p>
-            <p className="text-muted-foreground text-sm mt-1">or click to browse — AI will convert it to YAML</p>
-          </>
+          <div className="flex flex-col items-center gap-2">
+            <UploadCloud size={22} className="text-accent" />
+            <p className="text-sm font-medium text-foreground">Drop your existing resume PDF here</p>
+            <p className="text-xs text-muted-foreground">
+              or click to browse — AI will convert it to YAML
+            </p>
+          </div>
         )}
-        {error && <p className="text-error text-sm mt-2">{error}</p>}
+        {error && <p className="mt-3 text-sm text-error">{error}</p>}
       </div>
 
-      <p className="text-muted-foreground text-sm">
+      <p className="text-xs text-muted-foreground">
         New to render-cv format?{" "}
-        <a href="https://rendercv.com" target="_blank" rel="noopener noreferrer"
-           className="underline hover:text-foreground">rendercv.com</a>
+        <a
+          href="https://rendercv.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline decoration-accent/50 underline-offset-2 transition-colors hover:text-foreground"
+        >
+          rendercv.com
+        </a>
       </p>
     </div>
   );

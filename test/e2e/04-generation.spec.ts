@@ -14,6 +14,8 @@ test.describe("Scenario 4: Resume generation", () => {
 
   test("paste JD, generate, PDF preview renders", async ({ page }) => {
     await page.goto("/");
+    // Open the Generate view (editor is the default view)
+    await page.locator("[data-testid=nav-generate]").click();
     // Paste job description
     await page.locator("[data-testid=job-description]").fill(SAMPLE_JD);
     // Click generate

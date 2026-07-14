@@ -11,6 +11,11 @@ jest.mock("@uiw/react-codemirror", () => ({
   ),
 }));
 jest.mock("@codemirror/lang-yaml", () => ({ yaml: () => ({}) }));
+// Default mode is now Split, which mounts PdfPreview (fetch is unavailable in jsdom)
+jest.mock("@/components/PdfPreview", () => ({
+  __esModule: true,
+  default: () => <div data-testid="pdf-preview-mock" />,
+}));
 
 const mockResume = {
   id: 1, user_id: "default", yaml_content: "cv:\n  name: Test", updated_at: "2026-01-01",

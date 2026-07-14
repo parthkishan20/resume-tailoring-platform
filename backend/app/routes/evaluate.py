@@ -69,4 +69,5 @@ async def evaluate_stream(body: EvaluateRequest, api: BackendAPI = Depends(get_b
         except Exception as exc:
             yield _sse("error", {"error": str(exc), "code": "EVALUATION_FAILED"})
 
-    return StreamingResponse(event_gen(), media_type="text/event-stream")
+    return StreamingResponse(event_gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache"})

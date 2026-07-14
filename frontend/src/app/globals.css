@@ -3,26 +3,40 @@
 @tailwind utilities;
 
 :root {
-  --background: #111212;
-  --foreground: #f2f3f3;
-  --card: #191a1a;
-  --popover: #191a1a;
-  --surface: #191a1a;
-  --muted: #191a1a;
-  --input: #191a1a;
-  --border: #323434;
-  --accent: #323434;
-  --primary: #f2f3f3;
-  --primary-foreground: #111212;
-  --primary-hover: #e5e6e6;
-  --secondary-foreground: #e5e6e6;
-  --accent-foreground: #e5e6e6;
-  --muted-foreground: #7d8282;
-  --error: #7d8282;
-  --warning: #979b9b;
-  --destructive: #979b9b;
-  --success: #cbcdcd;
-  --ring: #f2f3f3;
+  /* Cloth — layered neutral surfaces */
+  --background: #0c0d0f;
+  --surface-1: #141619;
+  --surface-2: #1c1f23;
+  --card: #141619;
+  --popover: #1c1f23;
+  --muted: #1c1f23;
+  --input: #17191d;
+  --border: #26282d;
+  --border-strong: #34373d;
+
+  /* Thread — the single gold accent */
+  --accent: #d9a84e;
+  --accent-hover: #e5ba69;
+  --accent-foreground: #191204;
+  --accent-dim: rgba(217, 168, 78, 0.12);
+
+  /* Text */
+  --foreground: #edeef0;
+  --muted-foreground: #8b9099;
+  --faint-foreground: #5c6169;
+
+  /* Primary buttons wear the thread */
+  --primary: #d9a84e;
+  --primary-foreground: #191204;
+  --primary-hover: #e5ba69;
+
+  /* Semantic */
+  --success: #5bd087;
+  --warning: #f59e5b;
+  --error: #f07373;
+  --destructive: #f07373;
+
+  --ring: #d9a84e;
 }
 
 * { box-sizing: border-box; }
@@ -35,6 +49,41 @@ body {
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--background); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--faint-foreground); }
+
+/* Visible keyboard focus */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Stitched seam — the signature dashed-gold motif */
+.seam-dashed {
+  border-style: dashed;
+  border-color: rgba(217, 168, 78, 0.35);
+}
+
+/* CodeMirror chrome matches the cloth */
+.cm-editor { background: var(--background) !important; height: 100%; }
+.cm-editor .cm-gutters {
+  background: var(--background) !important;
+  border-right: 1px solid var(--border) !important;
+  color: var(--faint-foreground) !important;
+}
+.cm-editor .cm-activeLine { background: rgba(255, 255, 255, 0.03) !important; }
+.cm-editor .cm-activeLineGutter { background: transparent !important; color: var(--muted-foreground) !important; }
+.cm-editor .cm-content { font-family: var(--font-mono), monospace; font-size: 13px; }
+.cm-editor .cm-cursor { border-left-color: var(--accent) !important; }
+.cm-editor .cm-selectionBackground,
+.cm-editor.cm-focused .cm-selectionBackground { background: rgba(217, 168, 78, 0.18) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

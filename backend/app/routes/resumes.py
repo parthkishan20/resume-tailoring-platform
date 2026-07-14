@@ -12,11 +12,11 @@ from ..backend_api import BackendAPI
 from ..config import get_settings
 from ..database import (
     list_resumes, create_resume, get_resume, update_resume, delete_resume,
-    get_master_resume,
+    get_master_resume, get_rules,
 )
 from ..deps import get_backend
 from ..ports import LLMAuthError, LLMUnavailableError, RenderError, PDFExtractError
-from ..prompts import GENERATION_SYSTEM_PROMPT, CRITIQUE_SYSTEM_PROMPT
+from ..prompts import GENERATION_SYSTEM_PROMPT, CRITIQUE_SYSTEM_PROMPT, rules_block
 from ..yaml_utils import normalize_to_rendercv
 
 router = APIRouter()
@@ -68,10 +68,13 @@ async def generate_resume_stream(
             # Normalise master resume to valid rendercv before feeding to the LLM
             master_yaml = normalize_to_rendercv(master["yaml_content"])
 
+            # User-configured limits override the prompt's default counts
+            rules_suffix = rules_block(await asyncio.to_thread(get_rules, _db_path()))
+
             # Pass 1: generate
             gen_response = await api.complete(
                 [
-                    {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
+                    {"role": "system", "content": GENERATION_SYSTEM_PROMPT + rules_suffix},
                     {"role": "user", "content": f"JD:\n{body.job_description}\n\nMaster:\n{master_yaml}"},
                 ],
                 response_format={
@@ -95,7 +98,7 @@ async def generate_resume_stream(
             # Pass 2: audit
             audit_response = await api.complete(
                 [
-                    {"role": "system", "content": CRITIQUE_SYSTEM_PROMPT},
+                    {"role": "system", "content": CRITIQUE_SYSTEM_PROMPT + rules_suffix},
                     {"role": "user", "content": f"Draft:\n{draft_yaml}\n\nMaster:\n{master_yaml}\n\nJD:\n{body.job_description}"},
                 ]
             )
@@ -139,7 +142,8 @@ async def generate_resume_stream(
         except Exception as exc:
             yield _sse("error", {"error": str(exc), "code": "GENERATION_FAILED"})
 
-    return StreamingResponse(event_gen(), media_type="text/event-stream")
+    return StreamingResponse(event_gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/api/resumes/{resume_id}")
@@ -191,9 +195,9 @@ async def render_pdf(resume_id: int, api: BackendAPI = Depends(get_backend)):
 @router.delete("/api/resumes/{resume_id}", status_code=204)
 async def delete_generated(resume_id: int):
     row = await asyncio.to_thread(get_resume, _db_path(), resume_id)
-    if row and row.get("pdf_path"):
-        pdf_path = Path(_pdfs_dir()) / row["pdf_path"]
-        pdf_path.unlink(missing_ok=True)
     deleted = await asyncio.to_thread(delete_resume, _db_path(), resume_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Resume not found")
+    if row and row.get("pdf_path"):
+        pdf_path = Path(_pdfs_dir()) / row["pdf_path"]
+        pdf_path.unlink(missing_ok=True)

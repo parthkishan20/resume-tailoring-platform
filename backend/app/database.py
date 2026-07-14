@@ -80,7 +80,7 @@ def upsert_master_resume(
             conn.execute(
                 """DELETE FROM master_resume_history WHERE user_id = ? AND id NOT IN (
                     SELECT id FROM master_resume_history WHERE user_id = ?
-                    ORDER BY saved_at DESC LIMIT ?
+                    ORDER BY id DESC LIMIT ?
                 )""",
                 (user_id, user_id, HISTORY_LIMIT),
             )
@@ -223,7 +223,7 @@ def get_chat_messages(db_path: str, user_id: str = DEFAULT_USER_ID) -> list[dict
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             "SELECT id, user_id, role, content, created_at FROM chat_messages "
-            "WHERE user_id = ? ORDER BY created_at ASC",
+            "WHERE user_id = ? ORDER BY id ASC",
             (user_id,),
         ).fetchall()
         return [dict(r) for r in rows]
